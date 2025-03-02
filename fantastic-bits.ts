@@ -1,14 +1,64 @@
-/**
- * Grab Snaffles and try to throw them through the opponent's goal!
- * Move towards a Snaffle and use your team id to determine where you need to throw it.
- **/
+declare function readline(): string;
 
-const myTeamId: number = parseInt(readline()); // if 0 you need to score on the right of the map, if 1 you need to score on the left
+const myTeamId: number = parseInt(readline()); // 0 or 1
 
 const goal = [
     { x: 16000, y: 3250 },
     { x: 0, y: 3250 }
 ];
+
+interface Entity {
+    id: number;
+    entityType: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    state: number;
+}
+
+function distance(a: { x: number, y: number }, b: { x: number, y: number }): number {
+    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function findClosestSnaffle(wizard: Entity, snaffles: Entity[]): Entity | null {
+    let closestSnaffle: Entity | null = null;
+    let minDistance = Infinity;
+
+    for (const snaffle of snaffles) {
+        const dist = distance(wizard, snaffle);
+        if (dist < minDistance) {
+            minDistance = dist;
+            closestSnaffle = snaffle;
+        }
+    }
+
+    return closestSnaffle;
+}
+
+function avoidCollision(wizard: Entity, snaffles: Entity[], myWiz: Entity[]): Entity | null {
+    let bestSnaffle: Entity | null = null;
+    let minDistance = Infinity;
+
+    for (const snaffle of snaffles) {
+        let isSafe = true;
+        for (const otherWiz of myWiz) {
+            if (otherWiz.id !== wizard.id && distance(otherWiz, snaffle) < distance(wizard, snaffle)) {
+                isSafe = false;
+                break;
+            }
+        }
+        if (isSafe) {
+            const dist = distance(wizard, snaffle);
+            if (dist < minDistance) {
+                minDistance = dist;
+                bestSnaffle = snaffle;
+            }
+        }
+    }
+
+    return bestSnaffle;
+}
 
 // game loop
 while (true) {
@@ -20,21 +70,21 @@ while (true) {
     const opponentScore: number = parseInt(inputs[0]);
     const opponentMagic: number = parseInt(inputs[1]);
     
-    const entities: number = parseInt(readline()); // number of entities still in game
-    let snaffles: any[] = [];
-    let myWiz: any[] = []; // my wizards
-    
+    const entities: number = parseInt(readline());
+    let snaffles: Entity[] = [];
+    let myWiz: Entity[] = [];
+
     for (let i = 0; i < entities; i++) {
         inputs = readline().split(' ');
-        const entityId: number = parseInt(inputs[0]); // entity identifier
-        const entityType: string = inputs[1]; // "WIZARD", "OPPONENT_WIZARD" or "SNAFFLE" (or "BLUDGER" after first league)
-        const x: number = parseInt(inputs[2]); // position
-        const y: number = parseInt(inputs[3]); // position
-        const vx: number = parseInt(inputs[4]); // velocity
-        const vy: number = parseInt(inputs[5]); // velocity
-        const state: number = parseInt(inputs[6]); // 1 if the wizard is holding a Snaffle, 0 otherwise
+        const entityId: number = parseInt(inputs[0]);
+        const entityType: string = inputs[1];
+        const x: number = parseInt(inputs[2]);
+        const y: number = parseInt(inputs[3]);
+        const vx: number = parseInt(inputs[4]);
+        const vy: number = parseInt(inputs[5]);
+        const state: number = parseInt(inputs[6]);
 
-        const entity = { id: entityId, entityType, x, y, vx, vy, state };
+        const entity: Entity = { id: entityId, entityType, x, y, vx, vy, state };
 
         if (entityType === 'SNAFFLE') {
             snaffles.push(entity);
@@ -43,14 +93,23 @@ while (true) {
         }
     }
 
-    for (let i = 0; i < 2; i++) { 
-        const target = goal[myTeamId]; // target indicates side the wizard will throw the ball
-        const snaffle = snaffles[i % snaffles.length]; // created to make each wizard chase a different snaffle
+    for (let i = 0; i < 2; i++) {
+        const wizard = myWiz[i];
+        const target = goal[myTeamId];
 
-        if (myWiz[i].state === 0) {
-            console.log(`MOVE ${snaffle.x} ${snaffle.y} 100`);
-        } else {
+        if (wizard.state === 1) {
             console.log(`THROW ${target.x} ${target.y} 500`);
+        } else {
+            const closestSnaffle = findClosestSnaffle(wizard, snaffles);
+            const safeSnaffle = avoidCollision(wizard, snaffles, myWiz);
+
+            if (safeSnaffle) {
+                console.log(`MOVE ${safeSnaffle.x} ${safeSnaffle.y} 150`);
+            } else if (closestSnaffle) {
+                console.log(`MOVE ${closestSnaffle.x} ${closestSnaffle.y} 150`);
+            } else {
+                console.log(`MOVE ${target.x} ${target.y} 150`);
+            }
         }
     }
 }
