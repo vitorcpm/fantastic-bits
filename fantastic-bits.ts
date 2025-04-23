@@ -1,4 +1,4 @@
-declare function readline(): string;
+declare function readline(): string; //test
 
 const myTeamId: number = parseInt(readline()); // 0 or 1
 
